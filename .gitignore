@@ -1,0 +1,11 @@
+.idea
+_build
+deps/pkg/
+bin/
+tmp/
+.vscode
+debug
+log/*
+*.swp
+*.swo
+*~
