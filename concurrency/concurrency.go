@@ -1,9 +1,7 @@
-
 package concurrency
 
 import (
 	"bufio"
-	"dmp_web/go/commons/log"
 	"encoding/json"
 	"io"
 	"os"
@@ -11,79 +9,73 @@ import (
 	"sync"
 )
 
-
-
-func readLine(fin io.Reader, hookfn func(interface{})) {
+func readLine(fin io.Reader, hookfn func(interface{})) error {
 	scanner := bufio.NewScanner(fin)
 	for scanner.Scan() {
 		hookfn(scanner.Text())
 	}
-	close(inC)
+	return scanner.Err()
 
-	return
 }
 
-func readLineRet(file string, hookfn func(interface{}) interface{}) {
-	fin, err := os.Open(file)
-	if err != nil {
-		log.Errorf("Fail to open file", err)
-		return
-	}
-	defer fin.Close()
+//func readLineRet(file string, hookfn func(interface{}) interface{}) {
+//	fin, err := os.Open(file)
+//	if err != nil {
+//		log.Errorf("Fail to open file", err)
+//		return
+//	}
+//	defer fin.Close()
+//
+//	scanner := bufio.NewScanner(fin)
+//	for scanner.Scan() {
+//		outC <- hookfn(scanner.Text())
+//	}
+//	close(inC)
+//	close(outC)
+//
+//	return
+//}
 
-	scanner := bufio.NewScanner(fin)
-	for scanner.Scan() {
-		outC <- hookfn(scanner.Text())
-	}
-	close(inC)
-	close(outC)
-
-	return
-}
-
-func process(num int, f func(line <-chan interface{})) {
+func process(num int, f func(line <-chan interface{})) error {
 	for i := 0; i < num; i++ {
 		wg.Add(1)
 		go wrap(f)(inC)
 	}
 	wg.Wait()
 	close(outC)
+	return nil
 }
 
 var inC = make(chan interface{}, runtime.NumCPU())
 var outC = make(chan interface{}, runtime.NumCPU())
-var wg sync.WaitGroup
+var wg = new(sync.WaitGroup)
+var cnt int64
 
 func read(file io.Reader) error {
-	cnt := 0
-	readLine(file, func(line interface{}) {
+	err := readLine(file, func(line interface{}) {
 		inC <- line
 		cnt += 1
 	})
-
-	return nil
-
+	close(inC)
+	return err
 }
 
 func write(file io.Writer) error {
 	bf := bufio.NewWriter(file)
 	for w := range outC {
-		v, ok := w.(string);
+		v, ok := w.(string)
 		if ok {
 			bf.Write([]byte(v))
-		}else {
-			v,err:=json.Marshal(w)
-			if err!=nil{
+		} else {
+			v, err := json.Marshal(w)
+			if err != nil {
 				panic(err)
 			}
 			bf.Write(v)
 		}
 	}
-	if err := bf.Flush(); err != nil {
-		return err
-	}
+	return bf.Flush()
 
-	return nil
 }
 
 func wrapChan(f func(line interface{})) func(line <-chan interface{}) {
@@ -97,7 +89,6 @@ func wrapChan(f func(line interface{})) func(line <-chan interface{}) {
 
 func wrapChanRet(f func(line interface{}) interface{}) func(line <-chan interface{}) {
 	return func(line <-chan interface{}) {
-
 		for line := range inC {
 			outC <- f(line)
 		}
@@ -105,10 +96,18 @@ func wrapChanRet(f func(line interface{}) interface{}) func(line <-chan interfac
 }
 
 func Run(fi io.Reader, num int, f func(line interface{})) error {
-	if err := read(fi); err != nil {
-		return err
+	errC := make(chan error, 1)
+	go func() {
+		errC <- read(fi)
+	}()
+	go func() {
+		errC <- process(num, wrapChan(f))
+	}()
+	for i := 1; i <= 2; i++ {
+		if err := <-errC; err != nil {
+			return err
+		}
 	}
-	process(num, wrapChan(f))
 	return nil
 }
 
@@ -121,15 +120,26 @@ func RunFile(fin string, num int, f func(line interface{})) error {
 
 }
 
-
 //RunFileRet use  gorutines to parallel to process f, f has interface{} return
 func RunRet(fi io.Reader, fo io.Writer, num int, f func(line interface{}) interface{}) error {
-	if err := read(fi); err != nil {
-		return err
-	}
-	process(num, wrapChanRet(f))
+	errC := make(chan error, 1)
+	go func() {
+		errC <- read(fi)
+	}()
 
-	return write(fo)
+	go func() {
+		errC <- process(num, wrapChanRet(f))
+	}()
+	go func() {
+		errC <- write(fo)
+	}()
+
+	for i := 1; i <= 3; i++ {
+		if err := <-errC; err != nil {
+			return err
+		}
+	}
+	return nil
 
 }
 
