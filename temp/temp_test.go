@@ -10,7 +10,7 @@ import (
 
 func TestOpenWithData(t *testing.T) {
 	d1 := []byte("hello\nworld\n")
-	d2:=[]byte("hi")
+	d2 := []byte("hi")
 	type args struct {
 		name string
 		data []byte
@@ -27,9 +27,9 @@ func TestOpenWithData(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := OpenWithData(tt.args.name, tt.args.data)
-			out := make([]byte,len(tt.args.data))
+			out := make([]byte, len(tt.args.data))
 			_, err := io.ReadFull(got, out)
-			if err != nil && err!=io.EOF {
+			if err != nil && err != io.EOF {
 				t.Fatal(err)
 			}
 			if !reflect.DeepEqual(tt.args.data, out) {
@@ -38,3 +38,5 @@ func TestOpenWithData(t *testing.T) {
 		})
 	}
 }
+
+

@@ -3,11 +3,13 @@ package concurrency
 import (
 	"bufio"
 	"encoding/json"
+	"go_commons/reader"
 	"io"
 	"os"
 	"runtime"
 	"sync"
 	"sync/atomic"
+
 )
 
 func InitCap(num int) {
@@ -21,7 +23,19 @@ func readLine(fin io.Reader, hookfn func(interface{})) error {
 		hookfn(scanner.Text())
 	}
 	return scanner.Err()
+}
 
+func readLineArr(fin io.Reader,n int, hookfn func(interface{})) error {
+	r:=reader.NewLimitLineReader(fin,n)
+
+
+	for  n:=r.Read();n>0 {
+		if len(arr)==n{
+			hookfn(scanner.Text())
+			arr=arr[:0]
+		}
+	}
+	return nil
 }
 
 func process(num int, f func(line <-chan interface{})) error {
@@ -48,6 +62,24 @@ func read(file io.Reader) error {
 	return err
 }
 
+func readArr(file io.Reader) error {
+	err := readLine(file, func(line interface{}) {
+		inC <- line
+		atomic.AddInt64(&cnt, 1)
+	})
+	close(inC)
+	return err
+}
+
+func readArr(file io.Reader) error {
+	err := readLine(file, func(line interface{}) {
+		inC <- line
+		atomic.AddInt64(&cnt, 1)
+	})
+	close(inC)
+	return err
+}
+
 func write(file io.Writer) error {
 	bf := bufio.NewWriter(file)
 	for w := range outC {
@@ -63,7 +95,6 @@ func write(file io.Writer) error {
 		}
 	}
 	return bf.Flush()
-
 }
 
 func wrapChan(f func(line interface{})) func(line <-chan interface{}) {
@@ -84,14 +115,43 @@ func wrapChanRet(f func(line interface{}) interface{}) func(line <-chan interfac
 }
 
 func Run(fi io.Reader, num int, f func(line interface{})) error {
+ return RunIn(fi,num,f,read)
+}
+//RunFileRet use  gorutines to parallel to process f, f has interface{} return
+func RunRet(fi io.Reader, fo io.Writer, num int, f func(line interface{}) interface{}) error {
+	return RunInIo(fi,fo,num,f,read,write)
+
+
+}
+
+func RunIn(fi io.Reader, num int, run func(line interface{}),fin func(r io.Reader)error  ) error {
 	errC := make(chan error, 1)
 	go func() {
-		errC <- read(fi)
+		errC <- fin(fi)
 	}()
 	go func() {
-		errC <- process(num, wrapChan(f))
+		errC <- process(num, wrapChan(run))
 	}()
 	for i := 1; i <= 2; i++ {
+		if err := <-errC; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func RunInIo(fi io.Reader,fo io.Writer, num int, run func(line interface{})interface{},fin func(r io.Reader) error,fout func(w io.Writer) error  ) error {
+	errC := make(chan error, 1)
+	go func() {
+		errC <- fin(fi)
+	}()
+	go func() {
+		errC <- process(num, wrapChanRet(run))
+	}()
+	go func() {
+		errC <- fout(fo)
+	}()
+	for i := 1; i <= 3; i++ {
 		if err := <-errC; err != nil {
 			return err
 		}
@@ -105,31 +165,9 @@ func RunFile(fin string, num int, f func(line interface{})) error {
 		return err
 	}
 	return Run(fi, num, f)
-
 }
 
-//RunFileRet use  gorutines to parallel to process f, f has interface{} return
-func RunRet(fi io.Reader, fo io.Writer, num int, f func(line interface{}) interface{}) error {
-	errC := make(chan error, 1)
-	go func() {
-		errC <- read(fi)
-	}()
 
-	go func() {
-		errC <- process(num, wrapChanRet(f))
-	}()
-	go func() {
-		errC <- write(fo)
-	}()
-
-	for i := 1; i <= 3; i++ {
-		if err := <-errC; err != nil {
-			return err
-		}
-	}
-	return nil
-
-}
 
 //RunFileRet use  gorutines to parallel to process f, f has interface{} return , fin is input file,
 // fout is output file ,  num is gorutines number

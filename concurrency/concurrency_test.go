@@ -134,7 +134,7 @@ func TestRunRet1(t *testing.T) {
 	}
 }
 
-const line = "hi\nhello\nworld\n11111111111111111111111111111111111111111\n"
+const line = "hi\nhello\nworld\n111111111111111\n"
 
 var lines []byte
 

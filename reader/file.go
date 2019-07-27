@@ -2,7 +2,6 @@ package reader
 
 import (
 	"dmp_web/go/cmd/ali_lookalike/go/common/generate_data"
-	"dmp_web/go/commons/concurrency"
 	"io"
 	"io/ioutil"
 	"os"
@@ -68,33 +67,33 @@ func pipeReader() (io.ReadCloser, error) {
 
 }
 
-func RecurProcess(root, out string, f func(line interface{}) interface{}) error {
-	paths, err := RecurDirFiles(root)
-	if err != nil {
-		return err
-	}
-	outPaths := generate_data.UnixFilePath(paths, out)
-	for i, in := range paths {
-		if err := concurrency.RunFileRet(in, outPaths[i], 0, f); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-func RecurProcessDir(inDir, outDir string, name string, f func(line interface{}) interface{}) error {
-	ipaths, err := RecurDirFiles(inDir)
-	if err != nil {
-		return err
-	}
-	opaths := RecurCopy(inDir, outDir, name)
-	for i, in := range ipaths {
-		if err := concurrency.RunFileRet(in, opaths[i], 0, f); err != nil {
-			return err
-		}
-	}
-	return nil
-
-}
+//func RecurProcess(root, out string, f func(line interface{}) interface{}) error {
+//	paths, err := RecurDirFiles(root)
+//	if err != nil {
+//		return err
+//	}
+//	outPaths := generate_data.UnixFilePath(paths, out)
+//	for i, in := range paths {
+//		if err := concurrency.RunFileRet(in, outPaths[i], 0, f); err != nil {
+//			return err
+//		}
+//	}
+//	return nil
+//}
+//func RecurProcessDir(inDir, outDir string, name string, f func(line interface{}) interface{}) error {
+//	ipaths, err := RecurDirFiles(inDir)
+//	if err != nil {
+//		return err
+//	}
+//	opaths := RecurCopy(inDir, outDir, name)
+//	for i, in := range ipaths {
+//		if err := concurrency.RunFileRet(in, opaths[i], 0, f); err != nil {
+//			return err
+//		}
+//	}
+//	return nil
+//
+//}
 
 func RecurCopy(inDir string, outDir string, name string) []string {
 	paths, err := RecurDirFiles(inDir)

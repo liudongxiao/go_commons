@@ -1,22 +1,15 @@
 package temp
 
 import (
-	"github.com/spf13/afero"
 	"io/ioutil"
 	"os"
 )
 
-func Open(name string) afero.File {
-	fs := new(afero.MemMapFs)
-	f, err := afero.TempFile(fs, "", name+"_")
-	if err != nil {
-		panic(err)
-	}
-	return f
-}
 
-func OpenWithData(name string, data []byte) afero.File {
-	f := Open(name)
+
+func OpenWithData(name string, data []byte) *os.File {
+	f,err := os.Open(name)
+	panic(err)
 	if _, err := f.Write(data); err != nil {
 		panic(err)
 	}
@@ -34,6 +27,9 @@ func CetFiFoName(data []byte)(string,string)  {
 	if _,err:=fin.Write(data);err!=nil {
 		panic(err)
 	}
+	if _,err:=fin.Seek(0,0);err!=nil{
+		panic(err)
+	}
 	fout,err:=ioutil.TempFile("","fo")
 	if err!=nil{
 		panic(err)
@@ -47,6 +43,9 @@ func CetFiFo(data []byte)(*os.File,*os.File) {
 		panic(err)
 	}
 	if _, err := fin.Write(data); err != nil {
+		panic(err)
+	}
+	if _,err:=fin.Seek(0,0);err!=nil{
 		panic(err)
 	}
 	fout, err := ioutil.TempFile("", "fo")
