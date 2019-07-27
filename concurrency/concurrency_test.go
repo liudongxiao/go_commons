@@ -2,8 +2,8 @@ package concurrency
 
 import (
 	"bytes"
-	"dmp_web/go/commons/temp"
 	"fmt"
+	"go_commons/temp"
 	"io"
 	"runtime"
 	"strings"

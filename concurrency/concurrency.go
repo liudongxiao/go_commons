@@ -7,7 +7,13 @@ import (
 	"os"
 	"runtime"
 	"sync"
+	"sync/atomic"
 )
+
+func InitCap(num int) {
+	inC = make(chan interface{}, num)
+	outC = make(chan interface{}, num)
+}
 
 func readLine(fin io.Reader, hookfn func(interface{})) error {
 	scanner := bufio.NewScanner(fin)
@@ -17,24 +23,6 @@ func readLine(fin io.Reader, hookfn func(interface{})) error {
 	return scanner.Err()
 
 }
-
-//func readLineRet(file string, hookfn func(interface{}) interface{}) {
-//	fin, err := os.Open(file)
-//	if err != nil {
-//		log.Errorf("Fail to open file", err)
-//		return
-//	}
-//	defer fin.Close()
-//
-//	scanner := bufio.NewScanner(fin)
-//	for scanner.Scan() {
-//		outC <- hookfn(scanner.Text())
-//	}
-//	close(inC)
-//	close(outC)
-//
-//	return
-//}
 
 func process(num int, f func(line <-chan interface{})) error {
 	for i := 0; i < num; i++ {
@@ -54,7 +42,7 @@ var cnt int64
 func read(file io.Reader) error {
 	err := readLine(file, func(line interface{}) {
 		inC <- line
-		cnt += 1
+		atomic.AddInt64(&cnt, 1)
 	})
 	close(inC)
 	return err
@@ -173,5 +161,8 @@ func wrap(f func(line <-chan interface{})) func(line <-chan interface{}) {
 		f(line)
 		wg.Done()
 	}
+}
 
+func LineCount() {
+	atomic.LoadInt64(&cnt)
 }
